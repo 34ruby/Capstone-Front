@@ -12,3 +12,9 @@ WebRTC技術を通じてモーション認識ができるブラウザゲーム�
 ## ゲームのレポジトリー
 https://github.com/34ruby/Mafia [バクエンドのレポジトリー]<br>
 https://github.com/34ruby/Capstone-Front [フロントエンドレポジトリー]
+
+## モーション認識
+![image](https://user-images.githubusercontent.com/76924629/186065395-75dcc791-c658-400e-a8cf-479e0ba6b208.png)
+![image](https://user-images.githubusercontent.com/76924629/186065404-b0da4824-6c1c-4798-b6db-b168aba1ebae.png)
+<br>
+モーション認識によるゲームができます。
