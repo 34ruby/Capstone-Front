@@ -16,7 +16,7 @@ https://github.com/34ruby/Capstone-Front [フロントエンドレポジトリ�
 ## 使用技術 ＆　重要機能
 Front-end : Nuxt.js, Vuex, tailwind CSS, SCSS<br>
 Back-end : NestJS, Redis, MySQL<br>
-Server : AWS EC2, Docker <br>
+Server : AWS EC2, Docker, Janus Media Server <br>
 Cloud Service : AWS S3 (写真保存)<br>
 Module, Library : MediaPipe, Nuxt Socket(Socket.io), sweetalert2, day.jsなど<br>
 
