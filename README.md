@@ -13,6 +13,13 @@ WebRTC技術を通じてモーション認識ができるブラウザゲーム�
 https://github.com/34ruby/Mafia [バクエンドのレポジトリー]<br>
 https://github.com/34ruby/Capstone-Front [フロントエンドレポジトリー]
 
+## 使用技術 ＆　重要機能
+Front-end : Nuxt.js, Vuex, tailwind CSS, SCSS<br>
+Back-end : NestJS, Redis, MySQL<br>
+Server : AWS EC2, Docker <br>
+Cloud Service : AWS S3 (写真保存)<br>
+Module, Library : MediaPipe, Nuxt Socket(Socket.io), sweetalert2, day.jsなど<br>
+
 ## モーション認識
 ![image](https://user-images.githubusercontent.com/76924629/186065395-75dcc791-c658-400e-a8cf-479e0ba6b208.png)
 ![image](https://user-images.githubusercontent.com/76924629/186065404-b0da4824-6c1c-4798-b6db-b168aba1ebae.png)
