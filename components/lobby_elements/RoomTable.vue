@@ -188,6 +188,7 @@
 <script>
 import styled from "vue-styled-components";
 import { isJoinable, checkPassword, getRoom } from "@/api/mafiaAPI";
+// import { ProgressBar } from "@/components/lobby_elements/styled_components";
 
 const ProgressBar = styled("div", { room: Object })`
   --tw-shadow: 0 0 #0000;

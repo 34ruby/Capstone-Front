@@ -1,4 +1,4 @@
-import Vue from 'vue'
+import Vue from "vue";
 
 export const state = () => ({
   joinedRoom: null,
@@ -13,11 +13,11 @@ export const state = () => ({
   left: null,
   mafiaInfo: null,
   surviveMembers: null,
-})
+});
 
 export const mutations = {
   joinRoom(state, data) {
-    state.joinedRoom = data
+    state.joinedRoom = data;
   },
   addSubscribeStream(state, data) {
     function findrfid(element) {
@@ -52,8 +52,8 @@ export const mutations = {
     }
   },
   removeSubscriber(state, rfid) {
-    for (let i = 0; i<state.subscribedStreams.length; i++) {
-      console.log('index: ', i, 'rfid: ', state.subscribedStreams[i].rfid);
+    for (let i = 0; i < state.subscribedStreams.length; i++) {
+      console.log("index: ", i, "rfid: ", state.subscribedStreams[i].rfid);
       if (state.subscribedStreams[i].rfid == rfid) {
         state.left = state.subscribedStreams[i].nickname;
         state.subscribedStreams.splice(i, 1);
@@ -71,10 +71,10 @@ export const mutations = {
   removeAllSubscribers(state) {
     function kill_own_feed() {
       for (let mediaStream of state.roomMembers) {
-        stopMediaStream(mediaStream.stream)
+        stopMediaStream(mediaStream.stream);
       }
       for (let mediaStream of state.backupMembers) {
-        stopMediaStream(mediaStream.stream)
+        stopMediaStream(mediaStream.stream);
       }
     }
 
@@ -122,12 +122,11 @@ export const mutations = {
             // member.stream = null;
             state.roomMembers = [...state.roomMembers, member];
           }
-
         }
       } else {
         for (let i = 0; i < state.roomMembers.length; i++) {
           let member = state.roomMembers[i];
-          if (data.filter(e => e.id === member.id).length === 0) {
+          if (data.filter((e) => e.id === member.id).length === 0) {
             state.roomMembers.splice(i, 1);
             i--;
           }
@@ -136,7 +135,7 @@ export const mutations = {
     }
   },
   addRoomMember(state, data) {
-    console.log('addRoomMember activated');
+    console.log("addRoomMember activated");
     data.speaking = false;
     if (!state.roomMembers.length) {
       // data.stream = null;
@@ -146,7 +145,7 @@ export const mutations = {
     }
   },
   removeRoomMember(state, data) {
-    console.log('removeRoomMember activated');
+    console.log("removeRoomMember activated");
     if (!state.roomMembers.length) {
       return;
     }
@@ -159,7 +158,7 @@ export const mutations = {
     }
   },
   destroyRoomMembers(state) {
-    console.log('destroyRoomMembers activated');
+    console.log("destroyRoomMembers activated");
     state.roomMembers = [];
     state.backupMembers = [];
   },
@@ -183,30 +182,30 @@ export const mutations = {
   },
   // 유저의 죽음 처리
   killMember(state, data) {
-    for(const player of state.roomMembers) {
-      if(player.id !== data.id) continue;
-      console.log(player.nickname)
-      console.log(data)
-      player.die = data.die
-      stopMediaStream(player.stream);
+    for (let i = 0; i < state.roomMembers.length; i++) {
+      if (i + 1 === data) {
+        Vue.set(state.roomMembers[i], "die", true);
+        // stopMediaStream(state.roomMembers[i].stream);
+        break;
+      }
     }
   },
   // 죽은 유저를 카운트하여 승패를 판별
   surviveMemberCheck(state) {
-    state.surviveMembers = state.roomMembers.length
+    state.surviveMembers = state.roomMembers.length;
     for (let member of state.roomMembers) {
-      if (member.death) {
-        state.surviveMembers--
+      if (member.death === true) {
+        state.surviveMembers--;
       }
     }
   },
 
   mafiaInfoSave(state, data) {
-    state.mafiaInfo = data.nickname
+    state.mafiaInfo = data.nickname;
   },
 
   readySubscriber(state, data) {
-    for (let i=0; i<state.subscribedStreams.length; i++) {
+    for (let i = 0; i < state.subscribedStreams.length; i++) {
       let sub = state.subscribedStreams[i];
       if (sub.nickname === data.nickname) {
         sub.ready = data.ready;
@@ -223,35 +222,35 @@ export const mutations = {
     }
     const target = find(state.roomMembers, data);
     if (target) {
-      target.speaking = data.speaking;
+      // target.speaking = data.speaking;
+
+      Vue.set(target, "speaking", data.speaking);
     }
   },
   saveBackupMembers(state) {
-    state.backupMembers = [...state.roomMembers]
+    state.backupMembers = [...state.roomMembers];
   },
   loadBackupMembers(state) {
-    state.roomMembers = [...state.backupMembers]
-  }
-}
+    state.roomMembers = [...state.backupMembers];
+  },
+};
 
 export const getters = {
-  getJoinedRoom: state => state.joinedRoom,
-  getSubscribedStreams: state => state.subscribedStreams,
-  getSubscribedFeeds: state => state.subscribedFeeds,
-}
-
-
+  getJoinedRoom: (state) => state.joinedRoom,
+  getSubscribedStreams: (state) => state.subscribedStreams,
+  getSubscribedFeeds: (state) => state.subscribedFeeds,
+};
 
 function stopAndRemoveTrack(mediaStream) {
-  return function(track) {
+  return function (track) {
     track.stop();
     mediaStream.removeTrack(track);
   };
-};
+}
 
 function stopMediaStream(mediaStream) {
   if (!mediaStream) {
-    return
+    return;
   }
 
   mediaStream.getTracks().forEach(stopAndRemoveTrack(mediaStream));

@@ -92,7 +92,10 @@
           </div>
         </div>
       </div>
-      <div class="flex flex-row-reverse absolute inset-x-0 bottom-0" id="btntest">
+      <div
+        class="flex flex-row-reverse absolute inset-x-0 bottom-0"
+        id="btntest"
+      >
         <div class="m-4 w-40 justify-center items-center">
           <div class="leaveBox">
             <button class="buttonCore" @click="leave()">나가기</button>
@@ -292,7 +295,7 @@ export default {
 
     this.$root.roomSocket.on(GameRoomEvent.START, (data) => {
       console.log(data);
-      this.$store.commit('stream/saveBackupMembers');
+      this.$store.commit("stream/saveBackupMembers");
       if (data.start) {
         this.goToGame();
       }
@@ -728,14 +731,17 @@ export default {
                   });
                   vrc.speechEvents = hark(stream, {});
                   vrc.speechEvents.on("speaking", function () {
-                    // console.log("speaking");
+                    console.log("speaking");
                     if (vrc.$route.name === "room-id") {
                       vrc.$root.roomSocket.emit(GameRoomEvent.SPEAK, {
                         userId: vrc.myInfo.profile.userId,
                         nickname: vrc.myInfo.profile.nickname,
                         speaking: true,
                       });
-                    } else if (vrc.$route.name === "game-id" && vrc.$root.gameSocket) {
+                    } else if (
+                      vrc.$route.name === "game-id" &&
+                      vrc.$root.gameSocket
+                    ) {
                       vrc.$root.gameSocket.emit(GameEvent.SPEAK, {
                         userId: vrc.myInfo.profile.userId,
                         nickname: vrc.myInfo.profile.nickname,
@@ -745,14 +751,17 @@ export default {
                   });
 
                   vrc.speechEvents.on("stopped_speaking", function () {
-                    // console.log("stopped_speaking");
+                    console.log("stopped_speaking");
                     if (vrc.$route.name === "room-id") {
                       vrc.$root.roomSocket.emit(GameRoomEvent.SPEAK, {
                         userId: vrc.myInfo.profile.userId,
                         nickname: vrc.myInfo.profile.nickname,
                         speaking: false,
                       });
-                    } else if (vrc.$route.name === "game-id" && vrc.$root.gameSocket) {
+                    } else if (
+                      vrc.$route.name === "game-id" &&
+                      vrc.$root.gameSocket
+                    ) {
                       vrc.$root.gameSocket.emit(GameEvent.SPEAK, {
                         userId: vrc.myInfo.profile.userId,
                         nickname: vrc.myInfo.profile.nickname,
@@ -827,11 +836,11 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-#titlebox{
+#titlebox {
   font-size: 22px;
   font-weight: bold;
 }
-#tesgs{
+#tesgs {
   margin-top: 20px;
 }
 .leaveBox {
@@ -911,7 +920,6 @@ export default {
       height: 34px;
     }
   }
-
 }
 .startBox {
   width: 160px;
@@ -951,7 +959,6 @@ export default {
       height: 34px;
     }
   }
-
 }
 @keyframes buttonLineW {
   0% {
@@ -1000,10 +1007,10 @@ export default {
     color: #000;
   }
 }
-#roomMain{
+#roomMain {
   background-color: rgba(0, 0, 0, 0.665);
 
-  #btntest{
+  #btntest {
     height: 90px;
     padding-right: 30px;
     // border-bottom: 5px solid #FBBF24;

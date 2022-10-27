@@ -3,11 +3,17 @@
 <script>
 // import io from "socket.io-client";
 import * as tf from "@tensorflow/tfjs";
+import { GameEvent } from "@/api/mafiaAPI";
 
 export default {
   name: "App",
   components: {},
-  props: ["blind"],
+  props: {
+    status: {
+      type: String,
+      default: "NIGHT",
+    },
+  },
   data() {
     return {
       imgSrc: [],
@@ -85,35 +91,34 @@ export default {
         -> Remote track flowing again: 이라 뜸 Janus 문제?
       7. {video 태그 순서}랑 {얼굴 랜드마크 소켓서버로 보낼 때 같이 보낼 유저 정보의 종류}
     */
-    this.$root.gameSocket.on("othersFaceLandmarks", (data) => {
+    this.$root.gameSocket.on(GameEvent.LANDMARK, (data) => {
       // console.log("othersFaceLandmarks", data);
       this.testLandmark[data.id] = data.landmarks;
     });
 
-    const myVideoElement = document.getElementById(
-      `remote${this.myInfo.profile.id}`
-    );
-
-    // 소켓 연결
-    // this.socket = io("http://localhost:3065/game", {
-    //   transports: ["websocket"],
-    // });
-    // 자기 비디오랑 캔버스
-    if (myVideoElement) {
-      // await this.handCognition();
-      const myCanvas = document.getElementsByClassName(
+    const main = async () => {
+      // 소켓 연결
+      // this.socket = io("http://localhost:3065/game", {
+      //   transports: ["websocket"],
+      // });
+      // 자기 비디오랑 캔버스
+      this.myVideo = document.getElementById(`remote${this.myInfo.profile.id}`);
+      this.myCanvas = document.getElementsByClassName(
         `output_canvas${this.myInfo.profile.id}`
       )[0];
-      const myCtx = myCanvas.getContext("2d");
-      await this.myFace(myVideoElement, myCanvas, myCtx);
-    }
-    // 타인의 스트림만큼 캔버스에 메모 그리기
-    console.log("roomMembers:" + JSON.stringify(this.roomMembers));
-    for (const data of this.roomMembers) {
-      if (data.id !== this.myInfo.profile.id) {
-        await this.faceMemo(data);
+      this.myCtx = this.myCanvas.getContext("2d");
+
+      // await this.handCognition();
+      await this.myFace();
+      // 타인의 스트림만큼 캔버스에 메모 그리기
+      console.log("roomMembers:" + JSON.stringify(this.roomMembers));
+      for (const data of this.roomMembers) {
+        if (data.id !== this.myInfo.profile.id) {
+          await this.faceMemo(data);
+        }
       }
-    }
+    };
+    main();
   },
   async beforeDestroy() {
     console.log("beforeunload");
@@ -128,7 +133,10 @@ export default {
   },
   // 해야할일, 투표
   methods: {
-    async myFace(videoElement, canvasElement, canvasCtx) {
+    async myFace() {
+      const videoElement = this.myVideo;
+      const canvasElement = this.myCanvas;
+      const canvasCtx = this.myCtx;
       // videoElement.style.display = "none";
       let model;
 
@@ -155,12 +163,6 @@ export default {
     */
         for (const member of this.$store.state.stream.roomMembers) {
           if (member.id === this.myInfo.profile.id) {
-            if (member.die) {
-              clearInterval(this.myFaceInterval);
-              // console.log("죽었으니 얼굴인식을 종료");
-              return;
-            }
-
             const landmarks = await model.estimateFaces(videoElement, false);
             // 자신의 얼굴 랜드마크 확인
             // console.log(landmarks);
@@ -189,25 +191,33 @@ export default {
             //     canvasCtx.fillRect(landmark[0], landmark[1], 50, 50);
             //   });
             // }
-            if (!this.blind) {
-              await this.postLandmarks(landmarks);
+            if (this.status === "NIGHT") {
+              landmarks[0] = null;
             }
+            if (member.die) {
+              landmarks[0] = null;
+              clearInterval(this.myFaceInterval);
+              // console.log("죽었으니 얼굴인식을 종료");
+            }
+            await this.postLandmarks(landmarks);
 
             canvasCtx.restore();
           }
         }
       };
-      videoElement.addEventListener("loadeddata", async () => {
-        const blazeface = require("@tensorflow-models/blazeface");
-        model = await blazeface.load();
+      if (videoElement) {
+        videoElement.addEventListener("loadeddata", async () => {
+          const blazeface = require("@tensorflow-models/blazeface");
+          model = await blazeface.load();
 
-        this.myFaceInterval = setInterval(detectFaces, 30);
-      });
+          this.myFaceInterval = setInterval(detectFaces, 30);
+        });
+      }
     },
     postLandmarks(landmarks) {
       const id = this.myInfo.profile.id;
       // console.log("내 얼굴 랜드마크 보냄", landmarks);
-      this.$root.gameSocket.emit("myFaceLandmarks", {
+      this.$root.gameSocket.emit(GameEvent.LANDMARK, {
         landmarks: landmarks[0],
         id: id,
       });
@@ -215,55 +225,84 @@ export default {
     async faceMemo(data) {
       const id = data.id;
       const videoElement = document.getElementById(`remote${id}`);
-      if (videoElement) {
-        const canvasElement = document.getElementsByClassName(
-          `output_canvas${id}`
-        )[0];
+      const canvasElement = document.getElementsByClassName(
+        `output_canvas${id}`
+      )[0];
 
-        const canvasCtx = canvasElement.getContext("2d");
+      const canvasCtx = canvasElement.getContext("2d");
 
-        // videoElement.style.display = "none";
+      // videoElement.style.display = "none";
 
-        this.testImage[id] = {
-          img: null,
-          imgSrc: null,
-          imgWidth: null,
-          imgHeight: null,
-        };
+      this.testImage[id] = {
+        img: null,
+        imgSrc: null,
+        imgWidth: null,
+        imgHeight: null,
+      };
 
-        const detectFace = async () => {
-          canvasCtx.save();
-          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-          // canvasCtx.drawImage(
-          //   videoElement,
-          //   0,
-          //   0,
-          //   canvasElement.width,
-          //   canvasElement.height
-          // );
+      const detectFace = async () => {
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        // canvasCtx.drawImage(
+        //   videoElement,
+        //   0,
+        //   0,
+        //   canvasElement.width,
+        //   canvasElement.height
+        // );
 
-          // 여기가 문제야?
-          const landmarks = this.testLandmark[id];
-          // 랜드마크로 얼굴 그리기
-          if (landmarks)
-            this.testLandmark[id].landmarks.forEach((landmark) => {
-              canvasCtx.fillRect(landmark[0], landmark[1], 10, 10);
-            });
+        // 여기가 문제야?
+        const landmarks = this.testLandmark[id];
+        // 랜드마크로 얼굴 그리기
+        // if (landmarks)
+        //   this.testLandmark[id].landmarks.forEach((landmark) => {
+        //     canvasCtx.fillRect(landmark[0], landmark[1], 10, 10);
+        //   });
 
-          // 이미지;
-          this.testImage[id].img = new Image();
-          if (this.testImage[id].imgSrc != null)
-            this.testImage[id].img.src = this.testImage[id].imgSrc;
+        // 이미지;
+        this.testImage[id].img = new Image();
+        if (this.testImage[id].imgSrc != null)
+          this.testImage[id].img.src = this.testImage[id].imgSrc;
 
-          const img = this.testImage[id].img;
-          const imgWidth = img.width;
-          const imgHeight = img.height;
+        const img = this.testImage[id].img;
+        const imgWidth = img.width;
+        const imgHeight = img.height;
 
-          if (!landmarks || this.blind) {
-            const canvasWidth = canvasElement.width / 2;
-            const canvasHeight = (imgHeight / imgWidth) * canvasWidth;
-            const canvasx = canvasElement.width / 2 - canvasWidth / 2;
-            const canvasy = 0;
+        if (!landmarks) {
+          const canvasWidth = canvasElement.width / 2;
+          const canvasHeight = (imgHeight / imgWidth) * canvasWidth;
+          const canvasx = canvasElement.width / 2 - canvasWidth / 2;
+          const canvasy = 0;
+          img.onload = canvasCtx.drawImage(
+            img,
+            canvasx,
+            canvasy,
+            canvasWidth,
+            canvasHeight
+          );
+        } else {
+          const bottomRightx = landmarks.bottomRight[0];
+          const bottomRighty = landmarks.bottomRight[1];
+          const topLeftx = landmarks.topLeft[0];
+          const topLefty = landmarks.topLeft[1];
+
+          const imgCitizenHat = img.src.includes("citizen_hat");
+          const imgPoliceHat = img.src.includes("police_hat");
+          const imgDoctorHat = img.src.includes("doctor_hat");
+          const imgMafiaHat = img.src.includes("mafia_hat");
+
+          if (imgCitizenHat || imgPoliceHat || imgDoctorHat || imgMafiaHat) {
+            const canvasWidth =
+              bottomRightx - topLeftx + (bottomRightx - topLeftx) / 2;
+
+            const canvasHeight =
+              bottomRighty - topLefty + (bottomRighty - topLefty) / 2;
+            // console.log(bottomRightx);
+            // const canvasx = bottomRightx - (bottomRightx - topLeftx) / 2;
+            const canvasx =
+              topLeftx - canvasWidth / 2 + (bottomRightx - topLeftx) / 2;
+            // const canvasx = bottomRightx - (topLeftx - bottomRightx) / 2;
+            const canvasy = topLefty - canvasHeight;
             img.onload = canvasCtx.drawImage(
               img,
               canvasx,
@@ -271,39 +310,12 @@ export default {
               canvasWidth,
               canvasHeight
             );
-          } else {
-            const bottomRightx = landmarks.bottomRight[0];
-            const bottomRighty = landmarks.bottomRight[1];
-            const topLeftx = landmarks.topLeft[0];
-            const topLefty = landmarks.topLeft[1];
-
-            const imgCitizenHat = img.src.includes("citizen_hat");
-            const imgPoliceHat = img.src.includes("police_hat");
-            const imgDoctorHat = img.src.includes("doctor_hat");
-            const imgMafiaHat = img.src.includes("mafia_hat");
-
-            if (imgCitizenHat || imgPoliceHat || imgDoctorHat || imgMafiaHat) {
-              const canvasWidth =
-                bottomRightx - topLeftx + (bottomRightx - topLeftx) / 2;
-              const canvasHeight =
-                bottomRighty - topLefty + (bottomRighty - topLefty) / 2;
-              const canvasx =
-                topLeftx - canvasWidth / 2 + (bottomRightx - topLeftx) / 2;
-              const canvasy = topLefty - canvasHeight;
-              img.onload = canvasCtx.drawImage(
-                img,
-                canvasx,
-                canvasy,
-                canvasWidth,
-                canvasHeight
-              );
-            }
           }
+        }
 
-          canvasCtx.restore();
-        };
-        this.userFaceInterval[id] = setInterval(detectFace, 30);
-      }
+        canvasCtx.restore();
+      };
+      this.userFaceInterval[id] = setInterval(detectFace, 30);
     },
 
     memoJob(job, id) {
@@ -340,27 +352,27 @@ export default {
       console.log("이벤트 객체입니다!!@@", event);
       const id = event.item.id;
       switch (event.option.name) {
-        case "시민":
+        case "Citizen":
           this.testImage[id] = {
             imgSrc: require("@/assets/memo/citizen_hat.png"),
           };
           break;
-        case "경찰":
+        case "Police":
           this.testImage[id] = {
             imgSrc: require("@/assets/memo/police_hat.png"),
           };
           break;
-        case "의사":
+        case "Doctor":
           this.testImage[id] = {
             imgSrc: require("@/assets/memo/doctor_hat.png"),
           };
           break;
-        case "마피아":
+        case "Mafia":
           this.testImage[id] = {
             imgSrc: require("@/assets/memo/mafia_hat.png"),
           };
           break;
-        case "메모 삭제":
+        case "Remove Filter":
           this.testImage[id] = {
             imgSrc: "",
           };

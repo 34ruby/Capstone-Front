@@ -1,6 +1,6 @@
 <template lang="">
   <div class="body">
-    <Play :roomInfo="roomInfo"></Play>
+    <Play></Play>
   </div>
 </template>
 <script>
@@ -10,11 +10,9 @@ import { GameEvent } from "@/api/mafiaAPI";
 export default {
   components: {
     Play,
-
   },
   data() {
-    return {
-    };
+    return {};
   },
   created() {
     this.$root.gameSocket = this.$nuxtSocket({
@@ -22,16 +20,6 @@ export default {
       withCredentials: true,
       transports: ["websocket"],
     });
-
-    this.$root.gameSocket.on(GameEvent.LEAVE, (data) => {
-      console.log('LEAVE' + data)
-      // this.$store.commit("stream/setRoomMembers", data)
-    })
-
-    this.$root.gameSocket.on(GameEvent.GAMEEND, (data) => {
-      console.log('게임 엔드 발생')
-    })
-
   },
 
   computed: {
@@ -47,11 +35,10 @@ export default {
     surviveMembers() {
       return this.$store.state.stream.surviveMembers;
     },
-
   },
   methods: {
     exit() {
-      console.log('나가')
+      console.log("나가");
       var unpublish = { request: "unpublish" };
       var leave = { request: "leave" };
       var vrc = this;
@@ -87,7 +74,7 @@ export default {
     // if (this.isRoomOut) {
     //   this.exit();
     // }
-    console.log("beforeDestroy 에서 exit발생")
+    console.log("beforeDestroy 에서 exit발생");
     this.exit();
   },
 };

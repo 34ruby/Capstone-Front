@@ -2,7 +2,8 @@ export const cognitionErrorCheck = (
   rightHandLandmarks,
   rightFingersStatus,
   leftHandLandmarks,
-  leftFingersStatus
+  leftFingersStatus,
+  isAvailable
 ) => {
   let recognitionError;
   let text = "";
@@ -49,8 +50,12 @@ export const cognitionErrorCheck = (
     }
 
     voteResult = rightFingersCount + leftFingersCount;
-    if (voteResult == 0) {
-      text = "0번은 없습니다.";
+    if (isAvailable === 0) {
+      text = voteResult + "번은 없습니다.";
+    } else if (isAvailable === -1) {
+      text = voteResult + "번은 이미 죽었습니다.";
+    } else if (isAvailable === -2) {
+      text = "";
     } else {
       text = voteResult + "번";
     }

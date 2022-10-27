@@ -1,17 +1,16 @@
 <template>
   <div class="ets">
-    <p>tsre</p>
+    <Play></Play>
   </div>
 </template>
 
 <script>
+import Play from "@/components/play.vue";
 export default {
-
-}
+  components: {
+    Play,
+  },
+};
 </script>
 
-<style>
-.ets{
-  color: white;
-}
-</style>
+<style></style>

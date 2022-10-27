@@ -7,7 +7,12 @@ module.exports = {
     "./nuxt.config.{js,ts}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      backgroundImage: {
+        "day-time": "url('@/assets/game/back2.png')",
+        "night-time": "url('@/assets/game/night.png')",
+      },
+    },
   },
   plugins: [],
-}
+};

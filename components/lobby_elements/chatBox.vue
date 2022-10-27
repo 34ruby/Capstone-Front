@@ -13,12 +13,10 @@
         :chat="chat"
         :selectedIndex="$store.state.selectedIndex"
       >
-        <div
-          class="flex justify-between relative items-center"
-          @click="tabClicked(index)"
-        >
+        <div class="flex justify-between relative items-center">
           <p
             class="font-bold text-sm inline-block whitespace-nowrap overflow-hidden overflow-ellipsis w-full pl-2"
+            @click="tabClicked(index)"
           >
             {{ chat.name }}
           </p>

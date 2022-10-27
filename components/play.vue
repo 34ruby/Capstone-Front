@@ -1,385 +1,317 @@
-<template>
-  <div :class="`${flag ? 'gamebox-first' : 'gamebox-second'}`">
-      <WinModal ref="win" @escapeGame="escapeGame" @gameFinish="gameFinish" />
-    <button class="exitbtn"></button>
-    <div class="dayTimeBox">
-      <DayCount ref="dayCount" class="chatbox"></DayCount>
-      <Timer
-        v-on:nightResult="nightResult"
-        v-on:startVote="startVote"
-        v-on:finishVote="finishVote"
-        v-on:finishPunishmentVote="finishPunishmentVote"
-        ref="timer"
-        class="timerbox"
-      ></Timer>
-      <div class="exitBtn">
-        <exitGame @escapeGame="escapeGame"></exitGame>
-      </div>
+<template lang="">
+  <div
+    class="flex flex-col items-center h-screen w-full"
+    :class="`${currentStatus === 'NIGHT' ? 'bg-night-time' : 'bg-day-time'}`"
+  >
+    <div class="flex flex-col w-2/3 py-3 px-3 h-1/2">
+      <GameHeader ref="game_header" @leave="leave"></GameHeader>
+      <Board ref="board"></Board>
     </div>
-    <Audio ref="audio" />
-    <!-- 능력 결과 데이터는 전부 billboard로 보내야 한다! -->
-    <!-- userVideo에도 유저 데이터를 보내고, 화면이 꺼지게 해야 함. -->
-    <div class="atssds">
-      <Billboard
-        ref="billboard"
-        v-on:punishmentVote="punishmentVote"
-        v-on:nightEvent="nightEvent"
-        v-on:victorySearch="victorySearch"
-      />
-      <sideBar ref="sideBarSet"></sideBar>
-    </div>
-    <div class="px-2 mt-10">
-      <UserVideo
-        ref="userVideo"
-        v-on:startVoteMotion="startVote"
-        v-on:punishmentVoteMotion="punishmentVote"
-        v-on:skillMotion="nightEvent"
-        @voteNumEmit="voteNumCheck"
-        @punishmentEmit="punishmentVoteCheck"
-        @skillNumEmit="skillNumCheck"
-        v-bind:flag="flag"
-        v-bind:anotherMafia="anotherMafia"
-      />
-    </div>
+    <PlayerVideo ref="player_video"></PlayerVideo>
+    <Audio ref="audio"></Audio>
   </div>
 </template>
-
 <script>
-import exitGame from "@/components/gameFlow_elements/exitGame.vue";
-import Timer from "@/components/gameFlow_elements/timer.vue";
-import Billboard from "@/components/gameFlow_elements/billboard.vue";
-import SideBar from "@/components/gameFlow_elements/sideBar.vue";
-import UserVideo from "@/components/gameFlow_elements/userVideo.vue";
-import dayjs from "dayjs";
-import { GameEvent } from "@/api/mafiaAPI";
-import DayCount from "@/components/gameFlow_elements/dayCountView.vue";
+import GameHeader from "@/components/game_elements/GameHeader.vue";
+import Board from "@/components/game_elements/Board.vue";
+import PlayerVideo from "@/components/game_elements/PlayerVideo.vue";
 import Audio from "@/components/gameFlow_elements/audio.vue";
-import WinModal from "@/components/gameFlow_elements/winModal.vue";
+import { GameEvent } from "@/api/mafiaAPI";
 export default {
-  name: "App",
   components: {
-    Timer,
-    Billboard,
-    SideBar,
-    DayCount,
-    UserVideo,
+    GameHeader,
+    Board,
+    PlayerVideo,
     Audio,
-    dayjs,
-    WinModal,
-    exitGame,
   },
   computed: {
     myInfo() {
       return this.$store.getters["user/getMyInfo"];
     },
-    roomMembers() {
-      return this.$store.state.stream.roomMembers;
-    },
-    surviveMembers() {
-      return this.$store.state.stream.surviveMembers;
+    myVideoNum() {
+      return (
+        this.$store.state.stream.roomMembers.findIndex(
+          (e) => e.id == this.myInfo.id
+        ) + 1
+      );
     },
   },
-
-
 
   data() {
     return {
-      electedPlayer: 0, // 마피아로 의심되는 유저 투표
-      punishmentPlayer: false, // 찬반 투표, 디폴트는 반대
-      selectedUser: false, // 자신의 선택 확정, 디폴트는 미승인 (true가 되야 선택값 넘어감)
-      mafiaSelected: 0, // 마피아일 경우 유저 지목
-      doctorSelected: 0, // 의사일 경우 유저 지목
-      policeSelected: 0, // 경찰일 경우 유저 지목
-      flag: false,
-      day: false,
-      morningAudio: null,
-      nightAudio: null,
-      startTime: null,
-      endTime: null,
-      myJob: null,
-      anotherMafia: null,
-      gameFinishData: false,
-      // flag는 하위 컴포넌트에서 상속되게 해야한다.
-      // 플레이엉 넘을 이용 n 번째 플레이어를 날린다.
+      currentStatus: "NIGHT",
+      currentDate: 0,
+      isGameEnd: false,
+      alertContexts: {
+        NIGHT: {
+          title: "밤이 되었습니다",
+          content: "마피아, 의사, 경찰은 자신의 능력을 사용합니다.",
+          backdrop: "rgba(0,0,0,0.5)",
+          background: "rgba(16,19,66)",
+          color: "#ffffff",
+          imageUrl: require("~/assets/ingame/moon.svg"),
+        },
+        MEETING: {
+          title: "아침이 되었습니다",
+          content: "자유롭게 대화하며 서로에 대해 알아가는 시간입니다.",
+          backdrop: "rgba(255,255,255,0.5)",
+          color: "#000000",
+          imageUrl: require("~/assets/ingame/sun.svg"),
+        },
+        PUNISHMENT: {
+          title: "유저가 지목되었습니다",
+          content: "해당 유저에 대한 찬반투표를 시작합니다",
+          color: "#000000",
+          imageUrl: require("~/assets/ingame/punishment.svg"),
+        },
+        VOTE: {
+          title: "투표를 시작합니다",
+          content: "마피아로 의심되는 유저를 지목합니다",
+          color: "#000000",
+          imageUrl: require("~/assets/ingame/vote.svg"),
+        },
+      },
     };
   },
-  //새로고침 방지 위해서 추가 뒤로가기 하면 로비에서도 적용됨.
-
-  beforeUnmount() {
-    window.removeEventListener('beforeunload', this.unLoadEvent);
-  },
-
-  mounted() {
-    window.addEventListener('beforeunload', this.unLoadEvent);
-
-    this.$store.commit("stream/loadBackupMembers");
-    // let newRemoteFeed = null;
-    this.gameSocketSet();
-    // 여기서부터는 백엔드의 emit을 받아 처리
-    // 게임 시작과 동시에, 유저 정보를 받아오고, 게임 시작 메서드 실행
-    this.$root.gameSocket.on(GameEvent.JOIN, (data) => {
-      console.log("JOIN" + data);
-      // setTimeout(() => {
-      this.gameStart();
-      // }, 5000);
-    });
-    // 인게임에서 활용하기 위한 데이터를 가져오고, 직업 배분을 시작함
-    this.$root.gameSocket.on(GameEvent.START, (data) => {
-      for (let item of data) {
-        this.$store.commit("stream/setRoomMembersDie", item);
-      }
-      this.grantPlayerJob();
-    });
-    // 유저의 직업을 배분하고, 배분된 직업에 따라 다른 이벤트 부여
-    // 달라지는 것 - 빌보드 메세지, 사이드바 UI 내용
-    this.$root.gameSocket.on(GameEvent.JOB, (data) => {
-      console.log("JOB" + data);
-      for (let item of data) {
-        console.log(`${item}job` + item.job);
-        this.$store.commit("stream/setRoomMembersJob", item);
-        if (item.job === "MAFIA") {
-          this.$refs.sideBarSet.myJobMafia();
-          this.$refs.billboard.grantMafia();
-          // this.$root.gameSocket.emit(GameEvent.MAFIASEARCH);
-          this.myJob = item.job;
-        } else if (item.job === "POLICE") {
-          this.$refs.sideBarSet.myJobPolice();
-          this.$refs.billboard.grantPolice();
-          this.myJob = item.job;
-        } else if (item.job === "DOCTOR") {
-          this.$refs.sideBarSet.myJobDoctor();
-          this.$refs.billboard.grantDoctor();
-          this.myJob = item.job;
-        } else if (item.job == "CITIZEN") {
-          this.$refs.sideBarSet.myJobCitizen();
-          this.$refs.billboard.grantCitizen();
-          this.myJob = item.job;
-        }
-      }
-      this.$store.commit("stream/surviveMemberCheck");
-      // setTimeout(() => {
-      this.victorySearch();
-      // }, 5000);
-    });
-
-    this.$root.gameSocket.on(GameEvent.WINNER, (data) => {
-      console.log("WINNER" + data);
-      // this.$root.gameSocket.emit(GameEvent.GAMEEND, {
-      //   winner: data.winner
-      // });
-      if (data.winner === "MAFIA") {
-        this.mafiaWin();
-      } else if (data.winner === "CITIZEN") {
-        this.citizenWin();
-      }
-    });
-
-      // 낮밤 변경
-    this.$root.gameSocket.on(GameEvent.DAY, (data) => {
-
-      this.flag = data.day;
-      if (data.day === true) {
-        this.morningEvent();
-      } else {
-        this.nightEvent();
-      }
-    });
-
-    this.$root.gameSocket.on(GameEvent.VOTE, (data) => {
-      console.log("VOTE" + data);
-    });
-    // this.$root.gameSocket.on(GameEvent.MAFIASEARCH, (data) => {
-    //   // 모든 마피아 유저의 정보를 받아온다.
-    //   console.log(data)
-    //   // this.$store.commit('stream/mafiaInfoSave', data);
-    //   // 이것을 stream.js에 담고 실행한다.
-    // })
-
-    // 의사와 마피아는 단순히 받아오기만 함
-    // 실제 결과 처리는 프론트로 넘어오는 유저의 정보로 판별하기 때문.
-    this.$root.gameSocket.on(GameEvent.DOCTOR, (data) => {
-      console.log('DOCTOR' + data);
-    })
-    this.$root.gameSocket.on(GameEvent.MAFIA, (data) => {
-      console.log('MAFIA' + data);
-    })
-
-    this.$root.gameSocket.on(GameEvent.SPEAK, (data) => {
-      // console.log("SPEAK" + data);
-      this.$store.commit("stream/setSpeaker", data);
-    });
-
-  },
-  created() {
-
-  },
   methods: {
-    unLoadEvent: function (event) {
-      if (this.canLeaveSite) return;
+    init() {
+      this.$root.gameSocket.on(GameEvent.SPEAK, (data) => {
+        this.$store.commit("stream/setSpeaker", data);
+      });
 
-      event.preventDefault();
-      event.returnValue = '';
-    },
+      this.$root.gameSocket.on(GameEvent.TIMER, (data) => {
+        console.log("TIMER", data);
+        this.$refs.game_header.leftTime = data.timer;
 
-    // 게임에 입장하는 즉시 실행되며, 유저의 소켓 정보 받아옴
-    gameSocketSet() {
+        if (this.currentStatus !== data.status) {
+          if (this.currentDate !== data.day) {
+            this.currentDate = data.day;
+            this.$refs.board.date = data.day;
+          }
+          this.currentStatus = data.status;
+          this.$refs.board.status = data.status;
+          this.$refs.player_video.status = data.status;
+
+          this.$refs.game_header.turnTime = data.totalTime;
+          this.$refs.player_video.isCognizing = data.status !== "MEETING";
+          this.$refs.player_video.isCheck = false;
+          this.$refs.player_video.resetInterval();
+
+          if (data.status === "MEETING") {
+            this.$refs.audio.morningBgmEvent();
+          } else if (data.status === "NIGHT") {
+            this.$refs.audio.nightBgmEvent();
+          }
+
+          this.$swal({
+            imageUrl: this.alertContexts[data.status].imageUrl,
+            imageWidth: 150,
+            imageHeight: 150,
+            imageAlt: "Custom image",
+            title: this.alertContexts[data.status].title,
+            html: this.alertContexts[data.status].content,
+            timer: 1500,
+            showConfirmButton: false,
+            backdrop:
+              this.alertContexts[data.status].backdrop || "rgba(0,0,0,0)",
+            background:
+              this.alertContexts[data.status].background || "rgba(255,255,255)",
+            color: this.alertContexts[data.status].color,
+          });
+        }
+      });
+
+      this.$root.gameSocket.on(GameEvent.JOIN, (data) => {
+        // if (data.join) {
+        console.log("JOIN", data);
+        this.gameStart();
+        // }
+      });
+
+      this.$root.gameSocket.on(GameEvent.START, (data) => {
+        console.log("START", data);
+
+        // 이곳에 플레이어 직업 배정 로직이 들어가야함
+        this.$store.commit("stream/setRoomMembers", data.players);
+        // find me from data.players
+        const me = data.players.find(
+          (player) => player.id === this.myInfo.profile.id
+        );
+
+        this.$refs.board.addLog({
+          color: "text-yellow-500",
+          message: `게임이 시작되었습니다. 당신의 직업은 ${me.job}입니다`,
+        });
+        this.$refs.board.grantJob(me.job);
+      });
+
+      this.$root.gameSocket.on(GameEvent.LEAVE, (data) => {
+        console.log("LEAVE" + data);
+        this.$refs.board.addLog({
+          color: "text-yellow-500",
+          message: data.message,
+        });
+        this.$store.commit("stream/killMember", data.playerVideoNum);
+      });
+
+      this.$root.gameSocket.on(GameEvent.GAME_END, (data) => {
+        console.log("GAME_END", data);
+        this.isGameEnd = true;
+        this.$refs.board.addLog({
+          color: "text-blue-500",
+          message: `게임이 종료되었습니다. ${data.win}팀이 승리하였습니다`,
+        });
+        this.$refs.player_video.handClose();
+        this.$swal({
+          title: `${data.message}`,
+          html: "잠시 후 게임을 종료하고 로비로 돌아갑니다.",
+          timer: 5000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          backdrop: `
+            ${
+              data.win === "CITIZEN"
+                ? "rgba(130,202,250,0.4)"
+                : "rgba(219,0,0,0.4)"
+            }
+          `,
+        }).then((result) => {
+          if (result.dismiss === this.$swal.DismissReason.timer) {
+            this.$router.push("/lobby");
+          }
+        });
+      });
+
+      this.$root.gameSocket.on(GameEvent.VOTE, (data) => {
+        console.log("VOTE", data);
+        this.$refs.board.addLog({
+          message: `Day ${this.currentDate} 투표 결과: ${data.message}`,
+        });
+        if (data.playerVideoNum) {
+          this.$refs.board.setPunishVidNum(data.playerVideoNum);
+        }
+        this.$swal({
+          title: "투표 결과",
+          text: data.message,
+          icon: "info",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      });
+
+      this.$root.gameSocket.on(GameEvent.PUNISH, (data) => {
+        console.log("PUNISH", data);
+        if (data.result) {
+          this.$refs.audio.punishmentEvent();
+          if (data.playerVideoNum === this.myVideoNum) {
+            this.$refs.player_video.amIDead = true;
+          }
+          this.$refs.board.addLog({
+            color: "text-red-500",
+            message: `Day ${this.currentDate} 처형 결과: ${data.message}`,
+          });
+          this.$store.commit("stream/killMember", data.playerVideoNum);
+        } else {
+          this.$refs.board.addLog({
+            message: `Day ${this.currentDate} 처형 결과: ${data.message}`,
+          });
+        }
+        this.$swal({
+          title: "처형 결과",
+          text: data.message,
+          icon: "info",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      });
+
+      this.$root.gameSocket.on(GameEvent.SKILL, (data) => {
+        console.log("SKILL", data);
+        if (data.die) {
+          this.$refs.board.addLog({
+            color: "text-red-500",
+            message: `Day ${this.currentDate}: ${data.message}`,
+          });
+          if (data.playerVideoNum === this.myVideoNum) {
+            this.$refs.player_video.amIDead = true;
+          }
+          this.$store.commit("stream/killMember", data.playerVideoNum);
+
+          this.$swal({
+            title: "사망자 발생",
+            text: data.message,
+            imageUrl: require("~/assets/ingame/murder.svg"),
+            imageWidth: 150,
+            imageHeight: 150,
+            imageAlt: "Custom image",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else if (data.message.startsWith("의사가")) {
+          this.$refs.board.addLog({
+            color: "text-blue-500",
+            message: `Day ${this.currentDate}: ${data.message}`,
+          });
+          this.$swal({
+            title: "사망자 없음",
+            text: data.message,
+            imageUrl: require("~/assets/ingame/save.svg"),
+            imageWidth: 150,
+            imageHeight: 150,
+            imageAlt: "Custom image",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else {
+          this.$refs.board.addLog({
+            message: `Day ${this.currentDate}: ${data.message}`,
+          });
+          this.$swal({
+            title: "사망자 없음",
+            text: data.message,
+            imageUrl: require("~/assets/ingame/dove3.svg"),
+            imageWidth: 150,
+            imageHeight: 150,
+            imageAlt: "Custom image",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        }
+      });
+
+      this.$root.gameSocket.on(GameEvent.POLICE, (data) => {
+        this.$refs.board.addLog({
+          color: "text-green-500",
+          message: `Day ${this.currentDate} 경찰 능력 사용 결과: ${data.message}`,
+        });
+        this.$swal({
+          imageUrl: require(`~/assets/sidebar/${data.player.job.toLowerCase()}.svg`),
+          imageWidth: 150,
+          imageHeight: 150,
+          imageAlt: "Custom image",
+          title: data.player.nickname + "을(를) 수사했습니다.",
+          html: data.message,
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      });
       this.$root.gameSocket.emit(GameEvent.JOIN, {
         roomId: this.$route.params.roomInfo.id,
       });
-      this.$refs.billboard.gameStartBoard();
     },
-    // 게임 스타트, 게임 스타트 관련 데이터
     gameStart() {
       this.$root.gameSocket.emit(GameEvent.START);
-      this.$refs.billboard.grantPlayerJobBeforeBoard();
     },
-    // 직업 배분 결과 통지
-    grantPlayerJob() {
-      this.$root.gameSocket.emit(GameEvent.JOB);
-    },
-    // 아침 이벤트 발생,
-    morningEvent() {
-      console.log(this.$store.state.stream.roomMembers);
-      this.$refs.billboard.morningEventBoard();
-      console.log("아침 시작");
-      this.$refs.audio.morningBgmEvent();
-      // 이곳에서 받아오는 시간은 서버 시간
-      console.log(this.flag);
-      this.$refs.timer.morningTimer();
-      // dayCount에서는 빌보드 상단에 표기되는 day의 숫자를 +1
-      this.$refs.dayCount.nextDay();
-      // 타이머에서 다음 메서드를 실행하게 한다!
-    },
-    // 투표 시작
-    startVote() {
-      // this.citizenModal = true
-      this.$refs.billboard.startVoteBoard();
-      this.$refs.timer.voteTimer();
-      this.$refs.userVideo.startVoteMotion();
-      //여기서 유저 지목 값 받아올 수 있어야 함.
-    },
-    // 투표값 전송을 위한 메서드로, 집계는 startVote에서 한다.
-    // 자신의 투표값을 저장한다.
-    // userVideo.vue에서 얻어낸 유저 지목 값을 백엔드로 전송
-    voteNumCheck(voteNum) {
-      // this.electedPlayer = voteNum;
-      console.log("voteNum " + voteNum);
-      this.$root.gameSocket.emit(GameEvent.VOTE, {
-        vote: voteNum,
-      });
-    },
-    // 타이머 끝나면 이게 실행되고, 집계된 결과값을 가져온다.
-    finishVote() {
-      this.$root.gameSocket.emit(GameEvent.FINISHV);
-    },
-    // 사형시킬 유저가 특정되면 심판 투표를 진행
-    punishmentVote() {
-      this.$refs.billboard.startPunishmentVoteBoard();
-      this.$refs.timer.punishmentTimer();
-      this.$refs.userVideo.punishmentVoteMotion();
-    },
-    // userVideo.vue에서 얻어낸 심판투표 찬반여부를 백엔드로 전송
-    // true가 엄지손가락을 내린 형태로 사형 찬성이고
-    // false가 엄지손가락을 올린 형태로 사형 반대이다.
-    punishmentVoteCheck(punishmentNum) {
-      // punishmentNum 은 boolean
-      console.log(punishmentNum + "자신의 심판투표 결과값");
-      this.$root.gameSocket.emit(GameEvent.PUNISH, {
-        punish: punishmentNum,
-      });
-    },
-    // 심판 투표 결과값을 가져온다.
-    finishPunishmentVote() {
-      this.$root.gameSocket.emit(GameEvent.FINISHP);
-      console.log("찬반 가져옴");
-    },
-    nightEvent() {
-      console.log("게임 밤 이벤트 시작");
-      this.$refs.audio.nightBgmEvent();
-      this.$refs.billboard.nightEventBoard();
-      this.$refs.timer.nightEvent();
-      if (this.myJob === "MAFIA") {
-        this.$refs.userVideo.skillMotion();
-        //  this.$root.gameSocket.emit(GameEvent.MAFIASEARCH)
-      } else if (this.myJob === "DOCTOR") {
-        // select를 추가해야 할듯
-        this.$refs.userVideo.skillMotion();
-      } else if (this.myJob === "POLICE") {
-        // select를 추가해야 할듯
-        this.$refs.userVideo.skillMotion();
-      } else {
-        console.log("시민은 없다");
-      }
-    },
-    skillNumCheck(voteNum) {
-      if (this.myJob === "MAFIA") {
-        this.$root.gameSocket.emit(GameEvent.MAFIA, {
-          userNum: voteNum,
-        });
-      } else if (this.myJob === "DOCTOR") {
-        this.$root.gameSocket.emit(GameEvent.DOCTOR, {
-          userNum: voteNum,
-        });
-      } else if (this.myJob === "POLICE") {
-        this.$root.gameSocket.emit(GameEvent.POLICE, {
-          userNum: voteNum,
-        });
-      } // 이거
-    },
-    nightResult() {
-      this.$refs.billboard.nightResultBoard();
-      this.$root.gameSocket.emit(GameEvent.USEJOBS);
-      // ! 죽은 유저의 정보를 출력한다.
-      console.log("밤 결과");
-    },
-
-    victorySearch() {
-      this.$store.commit("stream/surviveMemberCheck");
-      console.log(this.$store.state.stream.roomMembers.die);
-      console.log(this.flag);
-      this.$root.gameSocket.emit(GameEvent.DAY, {
-        day: this.flag,
-      });
-      console.log(this.flag);
-    },
-    mafiaWin() {
-      this.$refs.win.mafiaWin();
-      // this.$root.gameSocket.emit(GameEvent.GAMEEND);
-    },
-    citizenWin() {
-      this.$refs.win.citizenWin();
-      // this.$root.gameSocket.emit(GameEvent.GAMEEND);
-    },
-    escapeGame() {
-      if (!this.gameFinishData) {
-        console.log(this.gameFinishData)
+    leave() {
+      if (!this.isGameEnd) {
         this.$root.gameSocket.emit(GameEvent.LEAVE);
-        console.log('나 가요')
       }
-      this.$router.push('/lobby');
     },
-    gameFinish() {
-      // this.$emit("gameFinish");
-      this.gameFinishData = true;
-      this.escapeGame();
-
-    }
+  },
+  mounted() {
+    this.init();
   },
 };
 </script>
-
-<style lang="scss" scoped="scoped">
-@import "~assets/game.scss";
-
-.atssds {
-  display: flex;
-  justify-content: space-between;
-}
-
-.exitBtn {
-  margin-left: 75px;
-  margin-right: 75px;
-  width: 150px;
-  height: 50px;
-}
-</style>
+<style lang=""></style>
