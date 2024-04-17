@@ -25,3 +25,6 @@ Module, Library : MediaPipe, Nuxt Socket(Socket.io), sweetalert2, day.jsなど<b
 ![image](https://user-images.githubusercontent.com/76924629/186065404-b0da4824-6c1c-4798-b6db-b168aba1ebae.png)
 <br>
 モーション認識によるゲームができます。
+
+## 参考動画
+https://drive.google.com/file/d/1gAItjfxsiOjlioJd5f3FX9W4inLrGysp/view?usp=sharing
